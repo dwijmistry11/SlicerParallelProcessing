@@ -21,16 +21,7 @@ class Processes(ScriptedLoadableModule):
     self.parent.title = "Processes"
     self.parent.categories = ["Developer Tools"]
     self.parent.dependencies = []
-    self.parent.contributors = ["Steve Pieper (Isomics, Inc.)"]
-    self.parent.helpText = """
-This module helps you implement parallel computing processes to work on Slicer data.
-"""
-    self.parent.helpText += self.getDefaultModuleDocumentationLink()
-    self.parent.acknowledgementText = """
-This file was originally developed by Steve Pieper, Isomics, Inc. and was partially funded by This project is supported by a NSF Advances in Biological Informatics Collaborative grant to Murat Maga (ABI-1759883), Adam Summers (ABI-1759637) and Doug Boyer (ABI-1759839).
-"""
 
- 
 
 
 #
@@ -59,46 +50,6 @@ class ProcessesWidget(ScriptedLoadableModuleWidget):
     self.autoSave.connect('clicked()',self.callingTest)
 
 
-    #
-    # Parameters Area
-    #
-    parametersCollapsibleButton = ctk.ctkCollapsibleButton()
-    parametersCollapsibleButton.text = "Parameters"
-    self.layout.addWidget(parametersCollapsibleButton)
-    parametersFormLayout = qt.QFormLayout(parametersCollapsibleButton)
-
-    self.maximumRunningProcessesSpinBox = ctk.ctkDoubleSpinBox()
-    self.maximumRunningProcessesSpinBox.minimum = 1
-    self.maximumRunningProcessesSpinBox.decimals = 0
-    self.maximumRunningProcessesSpinBox.value = self.logic.maximumRunningProcesses
-    parametersFormLayout.addRow("Maximum running processes", self.maximumRunningProcessesSpinBox)
-
-    processesCollapsibleButton = ctk.ctkCollapsibleButton()
-    processesCollapsibleButton.text = "Processes"
-    self.layout.addWidget(processesCollapsibleButton)
-    processesFormLayout = qt.QFormLayout(processesCollapsibleButton)
-
-    self.statusLabel = qt.QLabel("No processes running")
-    processesFormLayout.addRow(self.statusLabel)
-
-    self.processBoxes = {}
-    self.processLabels = {}
-    for processState in self.logic.processStates:
-        processBox = qt.QGroupBox()
-        processBoxLayout = qt.QVBoxLayout(processBox)
-        processBox.setTitle(processState)
-        processesFormLayout.addRow(processBox)
-        processLabel = qt.QLabel(processBox)
-        processLabel.text = "None"
-        processBoxLayout.addWidget(processLabel)
-        self.processBoxes[processState] = processBox
-        self.processLabels[processState] = processLabel
-
-    self.maximumRunningProcessesSpinBox.connect("valueChanged(double)", self.onMaximumChanged)
-
-    node = self.logic.getParameterNode()
-    self.nodeObserverTag = node.AddObserver(vtk.vtkCommand.ModifiedEvent, self.onNodeModified)
-
     # Add vertical spacer
     self.layout.addStretch(1)
 
@@ -112,9 +63,6 @@ class ProcessesWidget(ScriptedLoadableModuleWidget):
       node = self.logic.getParameterNode()
       node.RemoveObserver(self.nodeObserverTag)
 
-  def onMaximumChanged(self, value):
-    value = int(value)
-    self.logic.setMaximumRunningProcesses(value)
 
   def onNodeModified(self, caller, event):
     stateJSON = self.logic.getParameterNode().GetAttribute("state")
@@ -185,8 +133,6 @@ class ProcessesLogic(ScriptedLoadableModuleLogic):
       self.processLists["Running"][0].waitForFinished()
       self.__checkFishished()
 
-  def setMaximumRunningProcesses(self, value):
-    self.maximumRunningProcesses = value
 
   def saveState(self):
     state = {}

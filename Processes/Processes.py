@@ -30,6 +30,9 @@ This module helps you implement parallel computing processes to work on Slicer d
 This file was originally developed by Steve Pieper, Isomics, Inc. and was partially funded by This project is supported by a NSF Advances in Biological Informatics Collaborative grant to Murat Maga (ABI-1759883), Adam Summers (ABI-1759637) and Doug Boyer (ABI-1759839).
 """
 
+ 
+
+
 #
 # ProcessesWidget
 #
@@ -48,6 +51,13 @@ class ProcessesWidget(ScriptedLoadableModuleWidget):
 
   def setup(self):
     ScriptedLoadableModuleWidget.setup(self)
+
+    self.autoSave = qt.QPushButton('AutoSave')
+    self.autoSave.setObjectName('autoSave')
+    self.layout.addWidget(self.autoSave)
+    self.testObject = ProcessesTest()
+    self.autoSave.connect('clicked()',self.callingTest)
+
 
     #
     # Parameters Area
@@ -91,6 +101,11 @@ class ProcessesWidget(ScriptedLoadableModuleWidget):
 
     # Add vertical spacer
     self.layout.addStretch(1)
+
+
+  def callingTest(self):
+    self.testObject.test_ModelProcesses()
+
 
   def cleanup(self):
     if self.nodeObserverTag:
@@ -278,41 +293,12 @@ class Process(qt.QProcess):
     pass
 
 
-class VolumeFilterProcess(Process):
-  """This is an example of using a process to operate on volume data
-  """
-
-  def __init__(self, scriptPath, volumeNode, radius):
-    Process.__init__(self, scriptPath)
-    self.volumeNode = volumeNode
-    self.radius = radius
-    self.name = f"Filter {radius}"
-
-  def prepareProcessInput(self):
-    input = {}
-    input['array'] = slicer.util.arrayFromVolume(self.volumeNode)
-    input['spacing'] = self.volumeNode.GetSpacing()
-    input['dimensions'] = self.volumeNode.GetImageData().GetDimensions()
-    input['type'] = self.volumeNode.GetImageData().GetScalarType()
-    input['radius'] = self.radius
-    return pickle.dumps(input)
-
-  def useProcessOutput(self, processOutput):
-    output = pickle.loads(processOutput)
-    ijkToRAS = vtk.vtkMatrix4x4()
-    self.volumeNode.GetIJKToRASMatrix(ijkToRAS)
-    slicer.util.addVolumeFromArray(output['array'], ijkToRAS, self.name)
-    import CompareVolumes
-    CompareVolumes.CompareVolumesLogic().viewersPerVolume()
-
-
 class ModelFilterProcess(Process):
   """This is an example of running a process to operate on model data"""
 
-  def __init__(self, scriptPath, modelNode, iteration):
+  def __init__(self, scriptPath, iteration):
     Process.__init__(self, scriptPath)
-    self.modelNode = modelNode
-    self.name = f"Filter {modelNode.GetName()}-{iteration}"
+    self.name = f"Auto Save operation"
 
   def arrayFromModelPolyIds(self, modelNode):
     from vtk.util.numpy_support import vtk_to_numpy
@@ -321,66 +307,66 @@ class ModelFilterProcess(Process):
     return narray
 
   def prepareProcessInput(self):
-    if hasattr(slicer.util, "arrayFromModelPolyIds"):
-      arrayFromModelPolyIds = slicer.util.arrayFromModelPolyIds
-    else:
-      arrayFromModelPolyIds = self.arrayFromModelPolyIds
+    
     input = {}
-    input['vertexArray'] = slicer.util.arrayFromModelPoints(self.modelNode)
-    input['cellCount'] = self.modelNode.GetPolyData().GetPolys().GetNumberOfCells()
-    input['idArray'] = arrayFromModelPolyIds(self.modelNode)
+    input['a'] = " ## message from parent ## "
+    # input['cellCount'] = self.modelNode.GetPolyData().GetPolys().GetNumberOfCells()
+    # input['idArray'] = arrayFromModelPolyIds(self.modelNode)
     return pickle.dumps(input)
 
   def useProcessOutput(self, processOutput):
     output = pickle.loads(processOutput)
-    vertexArray = slicer.util.arrayFromModelPoints(self.modelNode)
-    vertexArray[:] = output['vertexArray']
-    slicer.util.arrayFromModelPointsModified(self.modelNode)
+    # vertexArray = slicer.util.arrayFromModelPoints(self.modelNode)
+    print("child output : " + output['b'] )
 
 
 class ProcessesTest(ScriptedLoadableModuleTest):
 
   def setUp(self):
-    slicer.mrmlScene.Clear(0)
+    pass
+    # slicer.mrmlScene.Clear(0)
 
   def runTest(self):
     self.setUp()
-    self.test_ModelProcesses()
+    # self.test_ModelProcesses()
 
   def test_ModelProcesses(self):
 
-    self.delayDisplay("Starting the Model test")
+    self.delayDisplay("Auto Save operation")
 
-    layoutManager = slicer.app.layoutManager()
-    layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView)
+    # layoutManager = slicer.app.layoutManager()
+    # layoutManager.setLayout(slicer.vtkMRMLLayoutNode.SlicerLayoutOneUp3DView)
 
-    modelNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode")
-    modelNode.CreateDefaultDisplayNodes()
+    # modelNode = slicer.mrmlScene.AddNewNodeByClass("vtkMRMLModelNode")
+    # modelNode.CreateDefaultDisplayNodes()
 
-    sphereSource = vtk.vtkSphereSource()
-    sphereSource.SetRadius(10)
-    sphereSource.SetThetaResolution(50)
-    sphereSource.SetPhiResolution(50)
-    sphereSource.Update()
-    modelNode.SetAndObservePolyData(sphereSource.GetOutputDataObject(0))
+    # sphereSource = vtk.vtkSphereSource()
+    # sphereSource.SetRadius(10)
+    # sphereSource.SetThetaResolution(50)
+    # sphereSource.SetPhiResolution(50)
+    # sphereSource.Update()
+    # modelNode.SetAndObservePolyData(sphereSource.GetOutputDataObject(0))
 
     def onProcessesCompleted(testClass):
-      testClass.assertEqual(len(logic.state()['Completed']), 50)
+      testClass.assertEqual(len(logic.state()['Completed']), 1)
       testClass.assertEqual(len(logic.state()['Failed']), 0)
       testClass.delayDisplay('Test passed!')
       # when first test finishes, run second test
       testClass.setUp()
-      testClass.test_VolumeProcesses()
+      # testClass.test_VolumeProcesses()
 
     logic = ProcessesLogic(completedCallback=lambda : onProcessesCompleted(self))
     thisPath = qt.QFileInfo(__file__).path()
     scriptPath = os.path.join(thisPath, "Resources", "ProcessScripts", "modelFilter.slicer.py")
 
-    for iteration in range(50):
-      filterProcess = ModelFilterProcess(scriptPath, modelNode, iteration)
-      logic.addProcess(filterProcess)
+    # for iteration in range(1):
+    iteration = 1
+    filterProcess = ModelFilterProcess(scriptPath, iteration)
+    logic.addProcess(filterProcess)
 
     logic.run()
+
+
 
 
   def test_VolumeProcesses(self):
